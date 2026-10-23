@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Expense Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Expense Tracker</h1>
+  <div style="width:190px"><select id="month" aria-label="Month"></select></div>
+</header>
+
+<section class="balance" aria-live="polite">
+  <small>Balance</small>
+  <div class="big" id="bal">0.00</div>
+</section>
+<div class="split">
+  <div class="stat"><small>Income</small><b class="inc" id="inc">0.00</b></div>
+  <div class="stat"><small>Expenses</small><b class="exp" id="exp">0.00</b></div>
+  <div class="stat"><small>Savings rate</small><b id="sr">–</b></div>
+</div>
+
+<section class="panel">
+  <h2 id="ftitle">Add a transaction</h2>
+  <form id="f">
+    <div class="f6"><div class="seg" role="group" aria-label="Type">
+      <button type="button" data-t="expense" aria-pressed="true">Expense</button>
+      <button type="button" data-t="income" aria-pressed="false">Income</button>
+    </div></div>
+    <div class="f2"><label for="amt">Amount (₹)</label><input id="amt" type="number" min="0.01" step="0.01" required inputmode="decimal"></div>
+    <div class="f2"><label for="cat">Category</label><select id="cat"></select></div>
+    <div class="f2"><label for="date">Date</label><input id="date" type="date" required></div>
+    <div class="f6"><label for="note">Note (optional)</label><input id="note" maxlength="60"></div>
+    <div class="f6" style="display:flex;gap:8px"><button class="go" id="sub" type="submit">Add transaction</button><button class="ghost" id="cancel" type="button" hidden>Cancel</button></div>
+  </form>
+</section>
+
+<div class="tabs" role="tablist">
+  <button role="tab" id="t1" aria-selected="true">Transactions</button>
+  <button role="tab" id="t2" aria-selected="false">Reports</button>
+</div>
+
+<section class="panel" id="p1">
+  <div class="filters"><input id="q" type="search" placeholder="Search notes or categories" aria-label="Search"><select id="ftype" aria-label="Type"><option value="all">All types</option><option value="income">Income</option><option value="expense">Expense</option></select><select id="fcat" aria-label="Category filter"></select></div>
+  <ul id="list"></ul>
+  <button class="ghost" id="csv" type="button" style="margin-top:10px">Copy as CSV</button>
+</section>
+
+<div id="p2" hidden>
+  <section class="panel">
+    <h2>Income vs expenses by month</h2>
+    <div class="legend"><span><i style="background:var(--inc)"></i>Income</span><span><i style="background:var(--exp)"></i>Expenses</span></div>
+    <div class="chart" id="chart"></div>
+  </section>
+  <section class="panel">
+    <h2>Where the money went</h2>
+    <div id="cats"></div>
+  </section>
+  <section class="panel">
+    <h2 id="budh">Monthly budgets</h2>
+    <div id="buds"></div>
+  </section>
+</div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
