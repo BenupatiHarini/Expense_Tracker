@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SlopeWatch – Landslide detection & risk mapping</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#e8ebe7;--panel:#f6f7f4;--ink:#1c2a2e;--mute:#5d6d70;--line:#c9d0cb;--brand:#2f5d62;
+--low:#3f8f5b;--mod:#d9a21b;--high:#d9672b;--crit:#b8322a;--none:#7a8a8d}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "Public Sans",system-ui,sans-serif}
+header{background:var(--brand);color:#eef3f1;padding:36px 5vw 30px;position:relative;overflow:hidden}
+header svg{position:absolute;inset:0;width:100%;height:100%;opacity:.18}
+header h1{font:800 clamp(28px,5vw,46px)/1.05 "Bricolage Grotesque",sans-serif;margin:0 0 8px;position:relative}
+header p{margin:0;max-width:60ch;position:relative;color:#d3e0dc}
+main{display:grid;grid-template-columns:minmax(280px,360px) 1fr;gap:20px;padding:20px 5vw 90px;max-width:1300px;margin:auto}
+@media(max-width:860px){main{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px}
+h2{font:600 19px "Bricolage Grotesque",sans-serif;margin:0 0 12px}
+label{display:block;font-size:14px;font-weight:500;margin:12px 0 4px}
+input[type=number]{width:100%;padding:9px;border:1px solid var(--line);border-radius:6px;font:inherit;background:#fff}
+#drop{border:2px dashed var(--brand);border-radius:8px;padding:22px;text-align:center;cursor:pointer;background:#fff;color:var(--mute)}
+#drop:focus-visible,button:focus-visible,input:focus-visible{outline:3px solid #e0a82e;outline-offset:2px}
+#drop img{max-width:100%;border-radius:6px;display:block;margin:auto}
+button{font:600 15px "Public Sans";border:0;border-radius:6px;padding:11px 16px;background:var(--brand);color:#fff;cursor:pointer}
+button.alt{background:#fff;color:var(--brand);border:1px solid var(--brand)}
+button:disabled{opacity:.5;cursor:wait}
+.row{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+.grid4{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-left:6px solid var(--none);border-radius:8px;padding:14px}
+.card small{color:var(--mute);display:block;font-weight:500}
+.card b{font:800 26px "Bricolage Grotesque";display:block;margin:2px 0}
+.card span{font-size:14px;color:var(--mute)}
+.Low{border-left-color:var(--low)}.Moderate{border-left-color:var(--mod)}.High{border-left-color:var(--high)}.Critical{border-left-color:var(--crit)}
+.imgs{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.imgs figure{margin:0}.imgs img{width:100%;border-radius:6px;border:1px solid var(--line)}
+figcaption{font-size:13px;color:var(--mute);margin-top:4px}
+#map{height:340px;border-radius:8px;margin-top:10px}
+.legend{display:flex;gap:14px;font-size:13px;margin-top:8px;flex-wrap:wrap}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+#err{color:var(--crit);font-weight:600;margin-top:10px}
+#chatBtn{position:fixed;right:20px;bottom:20px;border-radius:999px;padding:14px 20px;box-shadow:0 4px 14px #0003}
+#chat{position:fixed;right:20px;bottom:80px;width:min(360px,calc(100vw - 40px));height:440px;display:none;flex-direction:column;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 28px #0003;overflow:hidden}
+#chat.open{display:flex}
+#chat h3{margin:0;padding:12px 14px;background:var(--brand);color:#fff;font:600 16px "Bricolage Grotesque"}
+#log{flex:1;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:8px}
+.m{max-width:85%;padding:8px 11px;border-radius:10px;font-size:14px}
+.m.bot{background:#eef1ee;align-self:flex-start}.m.me{background:var(--brand);color:#fff;align-self:flex-end}
+#chat form{display:flex;gap:6px;padding:10px;border-top:1px solid var(--line)}
+#chat input{flex:1;padding:9px;border:1px solid var(--line);border-radius:6px;font:inherit}
+.chips{display:flex;gap:6px;flex-wrap:wrap;padding:0 12px 8px}
+.chips button{font-size:12px;padding:5px 9px}
+@media(prefers-reduced-motion:no-preference){.card{animation:rise .35s ease-out both}@keyframes rise{from{opacity:0;transform:translateY(6px)}}}
+</style>
+</head>
+<body>
+<header>
+  <svg aria-hidden="true" viewBox="0 0 800 200" preserveAspectRatio="none" fill="none" stroke="#fff" stroke-width="1.2">
+    <path d="M0 150C120 90 220 190 360 120S600 60 800 130"/><path d="M0 125C120 65 220 165 360 95S600 35 800 105"/>
+    <path d="M0 100C120 40 220 140 360 70S600 10 800 80"/><path d="M0 175C120 115 220 215 360 145S600 85 800 155"/>
+  </svg>
+  <h1>SlopeWatch</h1>
+  <p>Upload a photo of a hillside. Get landslide detection, severity, a likelihood forecast and a risk map in one report.</p>
+</header>
+
+<main>
+  <section class="panel" aria-label="Upload">
+    <h2>New analysis</h2>
+    <div id="drop" tabindex="0" role="button" aria-label="Choose a slope image">Drop a slope photo here or click to choose</div>
+    <input id="file" type="file" accept="image/*" hidden>
+    <label for="rain">Rainfall in last 72 h (mm), optional</label><input id="rain" type="number" min="0" placeholder="e.g. 120">
+    <label for="slope">Slope angle (degrees), optional</label><input id="slope" type="number" min="0" max="90" placeholder="e.g. 35">
+    <label for="lat">Latitude, optional</label><input id="lat" type="number" step="any">
+    <label for="lon">Longitude, optional</label><input id="lon" type="number" step="any">
+    <div class="row">
+      <button id="go" disabled>Analyse image</button>
+      <button id="geo" class="alt" type="button">Use my location</button>
+    </div>
+    <div id="err" role="alert"></div>
+  </section>
+
+  <section id="out" aria-live="polite">
+    <div class="panel"><h2>Report</h2><p style="color:var(--mute);margin:0">Your results will appear here after you upload an image.</p></div>
+  </section>
+</main>
+
+<button id="chatBtn">Ask the assistant</button>
+<div id="chat" role="dialog" aria-label="Assistant">
+  <h3>SlopeWatch assistant</h3>
+  <div id="log"><div class="m bot">Hi! Analyse an image, then ask me about the severity, prediction or what to do.</div></div>
+  <div class="chips"><button class="alt" data-q="What is the severity?">Severity</button><button class="alt" data-q="What is the probability of a landslide?">Prediction</button><button class="alt" data-q="What should I do?">What to do</button></div>
+  <form id="cf"><input id="cin" placeholder="Type a question" autocomplete="off"><button>Send</button></form>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+const API = location.port === "8000" || location.protocol === "https:" ? "" : "http://localhost:8000";
+const $ = id => document.getElementById(id);
+const COL = {Low:"#3f8f5b",Moderate:"#d9a21b",High:"#d9672b",Critical:"#b8322a",None:"#7a8a8d"};
+let file = null, ctx = null, map = null;
+
+$("drop").onclick = () => $("file").click();
+$("drop").onkeydown = e => { if (e.key === "Enter" || e.key === " ") $("file").click(); };
+$("drop").ondragover = e => e.preventDefault();
+$("drop").ondrop = e => { e.preventDefault(); pick(e.dataTransfer.files[0]); };
+$("file").onchange = e => pick(e.target.files[0]);
+function pick(f){ if(!f || !f.type.startsWith("image/")) return; file = f;
+  $("drop").innerHTML = `<img alt="Selected slope" src="${URL.createObjectURL(f)}">`; $("go").disabled = false; }
+
+$("geo").onclick = () => navigator.geolocation?.getCurrentPosition(p => {
+  $("lat").value = p.coords.latitude.toFixed(5); $("lon").value = p.coords.longitude.toFixed(5);
+}, () => $("err").textContent = "Location blocked. Enter latitude and longitude manually.");
+
+$("go").onclick = async () => {
+  $("err").textContent = ""; $("go").disabled = true; $("go").textContent = "Analysing…";
+  const fd = new FormData(); fd.append("image", file);
+  [["rain","rainfall_mm"],["slope","slope_deg"],["lat","lat"],["lon","lon"]].forEach(([i,k]) => { if ($(i).value) fd.append(k, $(i).value); });
+  try {
+    const r = await fetch(API + "/api/analyze", {method:"POST", body:fd});
+    if (!r.ok) throw new Error((await r.json()).detail || "Server error");
+    ctx = await r.json(); render(ctx);
+  } catch (e) { $("err").textContent = "Analysis failed: " + e.message; }
+  $("go").disabled = false; $("go").textContent = "Analyse image";
+};
+
+function render(d){
+  const det = d.detection, sev = d.severity, pr = d.prediction, rk = d.risk_map;
+  $("out").innerHTML = `
+  <div class="grid4">
+    <div class="card ${det.detected?'High':'Low'}"><small>1 · Detection</small><b>${det.detected?'Landslide found':'None found'}</b><span>${det.affected_area_pct}% of image affected · confidence ${Math.round(det.confidence*100)}%</span></div>
+    <div class="card ${sev.level}"><small>2 · Severity</small><b>${sev.level}</b><span>Score ${sev.score}/100 · ${det.regions} region(s)</span></div>
+    <div class="card ${pr.level}"><small>3 · Prediction</small><b>${Math.round(pr.probability*100)}%</b><span>Likelihood of (re)activation · ${pr.level}</span></div>
+    <div class="card ${rk.overall_level}"><small>4 · Risk map</small><b>${rk.overall_level}</b><span>Overall score ${rk.overall_score}/100</span></div>
+  </div>
+  <div class="panel"><h2>Image risk map</h2>
+    <div class="imgs"><figure><img src="${URL.createObjectURL(file)}" alt="Original"><figcaption>Original</figcaption></figure>
+    <figure><img src="${rk.heatmap}" alt="Risk heatmap"><figcaption>Risk heatmap (red = highest risk, white outline = detected landslide)</figcaption></figure></div>
+    <div class="legend">${Object.entries({Low:"Low",Moderate:"Moderate",High:"High",Critical:"Critical"}).map(([k,v])=>`<span><i style="background:${COL[k]}"></i>${v}</span>`).join("")}</div>
+    <p style="color:var(--mute);font-size:13px;margin:10px 0 0">Engine: ${d.engine}. Likelihood is an estimate built from image features plus any rainfall and slope you entered.</p>
+  </div>
+  <div class="panel" style="margin-top:16px"><h2>Geographic risk map</h2>
+    ${d.location.lat!=null ? '<div id="map"></div>' : '<p style="color:var(--mute);margin:0">Add latitude and longitude (or tap “Use my location”) to place this result on a map.</p>'}
+  </div>`;
+  if (d.location.lat != null) drawMap(d);
+}
+
+function cellColor(v){ return v<.25?COL.Low : v<.5?COL.Moderate : v<.75?COL.High : COL.Critical; }
+async function drawMap(d){
+  if (map) map.remove();
+  map = L.map("map").setView([d.location.lat, d.location.lon], 16);
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {attribution:"© OpenStreetMap"}).addTo(map);
+  const g = L.geoJSON(d.risk_map.geojson, {style:f => ({color:cellColor(f.properties.risk), weight:0, fillOpacity:.15 + f.properties.risk*.55})}).addTo(map);
+  map.fitBounds(g.getBounds());
+  L.marker([d.location.lat, d.location.lon]).addTo(map).bindPopup(`${d.risk_map.overall_level} risk (${d.risk_map.overall_score}/100)`);
+  try { (await (await fetch(API + "/api/reports")).json()).forEach(r =>
+    L.circleMarker([r.lat, r.lon], {radius:7, color:COL[r.level]||COL.None, fillOpacity:.8}).addTo(map).bindPopup(`Past report: ${r.level}`)); } catch {}
+}
+
+// chatbot
+$("chatBtn").onclick = () => $("chat").classList.toggle("open");
+function say(t, who){ const m = document.createElement("div"); m.className = "m " + who; m.textContent = t; $("log").append(m); $("log").scrollTop = 1e9; }
+async function ask(q){ say(q, "me");
+  const r = await fetch(API + "/api/chat", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({message:q, context:ctx})});
+  say((await r.json()).reply, "bot"); }
+$("cf").onsubmit = e => { e.preventDefault(); const q = $("cin").value.trim(); if (q) { $("cin").value = ""; ask(q); } };
+document.querySelectorAll(".chips button").forEach(b => b.onclick = () => ask(b.dataset.q));
+</script>
+</body>
+</html>
