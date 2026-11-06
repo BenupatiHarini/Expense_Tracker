@@ -1,1 +1,1 @@
-# Expense_Tracker
+AI Landslide Detection, Prediction, Severity and Risk Assessment
